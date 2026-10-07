@@ -88,6 +88,9 @@ Expected result:
 Each Tomcat server is tested independently before introducing Nginx
 into the request path.
 
+Tomcat Server 1 listens on port `8080`, while Tomcat Server 2 listens
+on port `8081`.
+
 ---
 
 ## Test 2.1 - Tomcat Service Status
@@ -110,30 +113,55 @@ Active: active (running)
 
 ## Test 2.2 - Tomcat Port Verification
 
-Tomcat must listen on port `8080`.
+Tomcat must listen on its configured application port.
 
-Command:
+For Tomcat Server 1:
 
 ```bash
 sudo ss -ltnp | grep ':8080'
 ```
 
-Expected result:
+Expected:
 
 ```text
 LISTEN ... *:8080 ...
+```
+
+For Tomcat Server 2:
+
+```bash
+sudo ss -ltnp | grep ':8081'
+```
+
+Expected:
+
+```text
+LISTEN ... *:8081 ...
 ```
 
 ---
 
 ## Test 2.3 - Tomcat Local Connectivity
 
-The Tomcat application is tested locally on the backend server.
+The Tomcat application is tested locally on each backend server.
 
-Command:
+### Tomcat Server 1
 
 ```bash
 curl -I http://localhost:8080
+```
+
+Expected response:
+
+```text
+HTTP/1.1 200
+Content-Type: text/html;charset=UTF-8
+```
+
+### Tomcat Server 2
+
+```bash
+curl -I http://localhost:8081
 ```
 
 Expected response:
@@ -258,9 +286,13 @@ remotely over the network.
 |---|---|
 | Hostname | `shashwat-mishra-K55VJ` |
 | IP Address | `10.156.195.84` |
+| Java Version | OpenJDK 17.0.20.1 |
 | Tomcat Version | 10.1.60 |
-| Port | 8080 |
+| Port | 8081 |
 | Service Manager | systemd |
+
+Tomcat Server 2 uses port `8081` because port `8080` is already
+occupied by an existing Docker/KIND service on the host.
 
 ---
 
@@ -285,13 +317,13 @@ Active: active (running)
 Command:
 
 ```bash
-sudo ss -ltnp | grep ':8080'
+sudo ss -ltnp | grep ':8081'
 ```
 
 Expected result:
 
 ```text
-LISTEN ... *:8080 ...
+LISTEN ... *:8081 ...
 ```
 
 ---
@@ -301,7 +333,7 @@ LISTEN ... *:8080 ...
 Command:
 
 ```bash
-curl http://localhost:8080/server-info/
+curl http://localhost:8081/server-info/
 ```
 
 Expected response:
@@ -310,7 +342,7 @@ Expected response:
 Tomcat Application Server 2
 Hostname: shashwat-mishra-K55VJ
 Server IP: 10.156.195.84
-Tomcat Port: 8080
+Tomcat Port: 8081
 Server Role: Backend Application Server 2
 ```
 
@@ -318,10 +350,25 @@ Server Role: Backend Application Server 2
 
 ## Test 4.4 - Tomcat Server 2 Remote Access
 
-From Machine 1:
+The application must also be accessible from the Nginx load-balancer
+server.
+
+**Source:**
+
+```text
+Machine 1 - 10.156.195.129
+```
+
+**Destination:**
+
+```text
+Machine 3 - 10.156.195.84:8081
+```
+
+Command:
 
 ```bash
-curl http://10.156.195.84:8080/server-info/
+curl http://10.156.195.84:8081/server-info/
 ```
 
 Expected response:
@@ -330,9 +377,12 @@ Expected response:
 Tomcat Application Server 2
 Hostname: shashwat-mishra-K55VJ
 Server IP: 10.156.195.84
-Tomcat Port: 8080
+Tomcat Port: 8081
 Server Role: Backend Application Server 2
 ```
+
+This verifies that the Tomcat Server 2 application is accessible
+remotely over the network.
 
 ---
 
@@ -510,6 +560,7 @@ Nginx :80
    |                  |
    v                  v
 Tomcat 1           Tomcat 2
+:8080              :8081
 ```
 
 JMeter can be used to evaluate:
